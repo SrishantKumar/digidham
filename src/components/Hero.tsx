@@ -1,95 +1,7 @@
-import { useEffect, useRef, useState, Suspense, Component } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Play, ChevronDown, Sparkles } from 'lucide-react';
-import { Canvas, useLoader, useFrame } from '@react-three/fiber';
-// @ts-ignore
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
-// @ts-ignore
-import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
-import * as THREE from 'three';
 
-// 3D Canvas Error Boundary to fallback gracefully to SVG
-class CanvasErrorBoundary extends Component<{ fallback: React.ReactNode; children: React.ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: any) {
-    console.warn("3D Render Canvas failed, falling back to SVG headset:", error);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-function Model({ mousePos }: { mousePos: { x: number; y: number } }) {
-  const modelRef = useRef<THREE.Group>(null);
-  
-  // Load materials first to map textures correctly
-  const materials = useLoader(MTLLoader, '/VRmodel/3dgooglesgamesvr.mtl');
-  const obj = useLoader(OBJLoader, '/VRmodel/3dgooglesgamesvr.obj', (loader) => {
-    materials.preload();
-    loader.setMaterials(materials);
-  });
-
-  useEffect(() => {
-    if (obj) {
-      obj.scale.set(0.012, 0.012, 0.012);
-      obj.rotation.set(0, Math.PI, 0);
-      
-      obj.traverse((child: any) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => {
-                if (mat instanceof THREE.MeshStandardMaterial) {
-                  mat.roughness = 0.2;
-                  mat.metalness = 0.7;
-                }
-              });
-            } else if (child.material instanceof THREE.MeshStandardMaterial) {
-              child.material.roughness = 0.2;
-              child.material.metalness = 0.7;
-            }
-          }
-        }
-      });
-    }
-  }, [obj]);
-
-  useFrame((state) => {
-    if (!modelRef.current) return;
-    
-    const time = state.clock.getElapsedTime();
-    modelRef.current.position.y = Math.sin(time * 1.5) * 0.12 - 0.25;
-
-    const targetX = mousePos.y * 0.35;
-    const targetY = -mousePos.x * 0.45;
-
-    modelRef.current.rotation.x = THREE.MathUtils.lerp(modelRef.current.rotation.x, targetX, 0.08);
-    modelRef.current.rotation.y = THREE.MathUtils.lerp(modelRef.current.rotation.y, targetY + Math.PI, 0.08);
-  });
-
-  return <primitive ref={modelRef} object={obj} />;
-}
-
-function ModelFallback() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="w-10 h-10 rounded-full border-t-2 border-b-2 border-saffron animate-spin" />
-    </div>
-  );
-}
-
-// Custom Premium SVG Headset design fallback
-function SVGHeadsetFallback() {
+function VRHeadsetMockup() {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
 
@@ -102,8 +14,11 @@ function SVGHeadsetFallback() {
       const rect = el.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
+      // Invert delta to tilt away/towards the light source
       const dx = (e.clientX - cx) / (rect.width / 2);
       const dy = (e.clientY - cy) / (rect.height / 2);
+      
+      // Multi-axis rotation with translation for physical 3D appearance
       inner.style.transform = `rotateY(${-dx * 18}deg) rotateX(${dy * 15}deg) translate3d(0, 0, 10px)`;
     };
 
@@ -125,6 +40,7 @@ function SVGHeadsetFallback() {
       className="relative w-full max-w-[460px] mx-auto cursor-pointer select-none py-10"
       style={{ perspective: '1500px', transformStyle: 'preserve-3d' }}
     >
+      {/* Interactive Floating VR Chassis with Inverted Parallax */}
       <div
         ref={innerRef}
         className="relative float-anim"
@@ -133,20 +49,28 @@ function SVGHeadsetFallback() {
           transformStyle: 'preserve-3d',
         }}
       >
+        {/* Tilted Concentric Orbital Rings */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ transform: 'translateZ(-40px)' }}>
           <div className="absolute w-[120%] h-[120%] rounded-full border border-dashed border-amber-500/10 orbit-ring-1" />
           <div className="absolute w-[135%] h-[135%] rounded-full border border-double border-saffron/8 orbit-ring-2" />
+          <div className="absolute w-[150%] h-[150%] rounded-full border border-amber-400/5 orbit-ring-3" />
         </div>
 
+        {/* Studio Light Backdrop Aura */}
         <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] pointer-events-none" 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] pointer-events-none transition-opacity duration-500" 
           style={{
             background: 'radial-gradient(circle, rgba(255,153,51,0.18) 0%, rgba(212,175,55,0.05) 50%, transparent 100%)',
             transform: 'translateZ(-30px)'
           }}
         />
 
-        <div className="relative drop-shadow-[0_25px_60px_rgba(6,5,12,0.8)]" style={{ transform: 'translateZ(0px)', transformStyle: 'preserve-3d' }}>
+        {/* 3D Headset Body (Layered for Depth) */}
+        <div 
+          className="relative drop-shadow-[0_25px_60px_rgba(6,5,12,0.8)]"
+          style={{ transform: 'translateZ(0px)', transformStyle: 'preserve-3d' }}
+        >
+          {/* Main Visual Headset Frame */}
           <svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" className="w-full">
             <defs>
               <linearGradient id="luxuryBody" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -171,91 +95,49 @@ function SVGHeadsetFallback() {
                 <stop offset="40%" stopColor="rgba(212,175,55,0.15)"/>
                 <stop offset="100%" stopColor="rgba(6,5,12,0.95)"/>
               </radialGradient>
+              <filter id="luxuryGlow">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+              </filter>
             </defs>
 
+            {/* Rear Cushioning layer */}
             <rect x="50" y="75" width="340" height="130" rx="35" fill="#0A0914" stroke="url(#goldFoil)" strokeWidth="0.5" opacity="0.4" />
+
+            {/* Headset Chassis */}
             <rect x="56" y="66" width="328" height="148" rx="42" fill="url(#luxuryBody)" stroke="url(#goldFoil)" strokeWidth="1.2" />
+
+            {/* Front Curved Glass Shield Plate */}
             <rect x="62" y="72" width="316" height="136" rx="36" fill="url(#spiritualGlow)" opacity="0.9" />
             <rect x="62" y="72" width="316" height="136" rx="36" fill="url(#glassReflection)" />
 
+            {/* Inner Spiritual Mandalic Circuit / Temple Silhouette pattern inside screen */}
+            <path d="M120 140 A 100 100 0 0 1 320 140" fill="none" stroke="url(#goldFoil)" strokeWidth="0.5" opacity="0.15" strokeDasharray="3,3" />
+            <circle cx="220" cy="140" r="45" fill="none" stroke="url(#goldFoil)" strokeWidth="0.8" opacity="0.25" />
+            <circle cx="220" cy="140" r="15" fill="none" stroke="url(#goldFoil)" strokeWidth="0.5" opacity="0.2" />
+            
+            {/* Lenses */}
             <ellipse cx="155" cy="140" rx="42" ry="38" fill="#06050C" stroke="url(#goldFoil)" strokeWidth="1" opacity="0.8" />
+            <ellipse cx="155" cy="140" rx="30" ry="26" fill="rgba(255,153,51,0.08)" />
+            <circle cx="150" cy="135" r="4" fill="#FFF" opacity="0.3" />
+
             <ellipse cx="285" cy="140" rx="42" ry="38" fill="#06050C" stroke="url(#goldFoil)" strokeWidth="1" opacity="0.8" />
+            <ellipse cx="285" cy="140" rx="30" ry="26" fill="rgba(255,153,51,0.08)" />
+            <circle cx="280" cy="135" r="4" fill="#FFF" opacity="0.3" />
+
+            {/* Golden Temple Spine / Crown Trim in Center top */}
             <path d="M205 72 L220 52 L235 72 Z" fill="url(#goldFoil)" opacity="0.8" />
             <line x1="220" y1="52" x2="220" y2="35" stroke="url(#goldFoil)" strokeWidth="1.5" opacity="0.9" />
-            <circle cx="220" cy="32" r="2.5" fill="#FFE29A" />
+            <circle cx="220" cy="32" r="2.5" fill="#FFE29A" filter="url(#luxuryGlow)" />
+
+            {/* Premium Metallic Side Hinges */}
+            <rect x="42" y="115" width="15" height="50" rx="4" fill="url(#goldFoil)" />
+            <rect x="383" y="115" width="15" height="50" rx="4" fill="url(#goldFoil)" />
+
+            {/* Brand Logo Watermark */}
             <text x="220" y="102" textAnchor="middle" fontFamily="Cinzel" fontSize="9" fill="url(#goldFoil)" letterSpacing="5" opacity="0.75">DIGIDHAM</text>
+            <text x="220" y="185" textAnchor="middle" fontFamily="Plus Jakarta Sans" fontSize="6" fill="#FFE29A" letterSpacing="2" opacity="0.4">SPATIAL VR SYSTEM</text>
           </svg>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VRHeadsetMockup() {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const handleMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      setMousePos({
-        x: (e.clientX - cx) / (rect.width / 2),
-        y: (e.clientY - cy) / (rect.height / 2),
-      });
-    };
-
-    const handleLeave = () => {
-      setMousePos({ x: 0, y: 0 });
-    };
-
-    el.addEventListener('mousemove', handleMove);
-    el.addEventListener('mouseleave', handleLeave);
-    return () => {
-      el.removeEventListener('mousemove', handleMove);
-      el.removeEventListener('mouseleave', handleLeave);
-    };
-  }, []);
-
-  return (
-    <CanvasErrorBoundary fallback={<SVGHeadsetFallback />}>
-      <div
-        ref={containerRef}
-        className="relative w-full h-[400px] md:h-[460px] mx-auto cursor-pointer select-none"
-        style={{ perspective: '1500px', transformStyle: 'preserve-3d' }}
-      >
-        {/* Tilted Concentric Orbital Rings */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ transform: 'translateZ(-40px)' }}>
-          <div className="absolute w-[80%] h-[80%] rounded-full border border-dashed border-amber-500/10 orbit-ring-1" />
-          <div className="absolute w-[95%] h-[95%] rounded-full border border-double border-saffron/8 orbit-ring-2" />
-          <div className="absolute w-[110%] h-[110%] rounded-full border border-amber-400/5 orbit-ring-3" />
-        </div>
-
-        {/* Studio Light Backdrop Aura */}
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[100px] pointer-events-none transition-opacity duration-500" 
-          style={{
-            background: 'radial-gradient(circle, rgba(255,153,51,0.14) 0%, rgba(212,175,55,0.04) 50%, transparent 100%)',
-          }}
-        />
-
-        {/* 3D Model Rendering Canvas */}
-        <div className="w-full h-full relative" style={{ transform: 'translateZ(10px)' }}>
-          <Suspense fallback={<ModelFallback />}>
-            <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }}>
-              <ambientLight intensity={1.5} />
-              <directionalLight position={[5, 5, 5]} intensity={2.5} color="#FFE29A" />
-              <directionalLight position={[-5, 5, -5]} intensity={1.2} color="#FF9933" />
-              <pointLight position={[0, -2, 2]} intensity={1.5} color="#D4AF37" />
-              <Suspense fallback={null}>
-                <Model mousePos={mousePos} />
-              </Suspense>
-            </Canvas>
-          </Suspense>
         </div>
 
         {/* 3D Floating Diya Particles with Parallax */}
@@ -265,6 +147,8 @@ function VRHeadsetMockup() {
             { top: '15%', right: '12%', delay: '0.8s', size: 5 },
             { bottom: '12%', left: '16%', delay: '1.6s', size: 6 },
             { bottom: '18%', right: '10%', delay: '0.4s', size: 4 },
+            { top: '55%', left: '-5%', delay: '1.2s', size: 5 },
+            { top: '65%', right: '-4%', delay: '2s', size: 6 },
           ].map((p, i) => (
             <div
               key={i}
@@ -282,7 +166,7 @@ function VRHeadsetMockup() {
           ))}
         </div>
       </div>
-    </CanvasErrorBoundary>
+    </div>
   );
 }
 
