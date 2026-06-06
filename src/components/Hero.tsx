@@ -1,9 +1,31 @@
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense, Component } from 'react';
 import { Play, ChevronDown, Sparkles } from 'lucide-react';
 import { Canvas, useLoader, useFrame } from '@react-three/fiber';
+// @ts-ignore
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
+// @ts-ignore
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import * as THREE from 'three';
+
+// 3D Canvas Error Boundary to fallback gracefully to SVG
+class CanvasErrorBoundary extends Component<{ fallback: React.ReactNode; children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn("3D Render Canvas failed, falling back to SVG headset:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 function Model({ mousePos }: { mousePos: { x: number; y: number } }) {
   const modelRef = useRef<THREE.Group>(null);
@@ -17,17 +39,14 @@ function Model({ mousePos }: { mousePos: { x: number; y: number } }) {
 
   useEffect(() => {
     if (obj) {
-      // Scale down and face the front
       obj.scale.set(0.012, 0.012, 0.012);
       obj.rotation.set(0, Math.PI, 0);
       
-      // Inject metallic and glossy reflections for a luxury look
-      obj.traverse((child) => {
+      obj.traverse((child: any) => {
         if (child instanceof THREE.Mesh) {
           child.castShadow = true;
           child.receiveShadow = true;
           if (child.material) {
-            // Apply gold/metallic traits to non-textured surfaces
             if (Array.isArray(child.material)) {
               child.material.forEach((mat) => {
                 if (mat instanceof THREE.MeshStandardMaterial) {
@@ -45,16 +64,14 @@ function Model({ mousePos }: { mousePos: { x: number; y: number } }) {
     }
   }, [obj]);
 
-  // Gentle float (sine wave) + mouse-tracking tilt interpolation
   useFrame((state) => {
     if (!modelRef.current) return;
     
     const time = state.clock.getElapsedTime();
     modelRef.current.position.y = Math.sin(time * 1.5) * 0.12 - 0.25;
 
-    // Smooth rotation lerp
     const targetX = mousePos.y * 0.35;
-    const targetY = -mousePos.x * 0.45; // Inverted tilt tracking
+    const targetY = -mousePos.x * 0.45;
 
     modelRef.current.rotation.x = THREE.MathUtils.lerp(modelRef.current.rotation.x, targetX, 0.08);
     modelRef.current.rotation.y = THREE.MathUtils.lerp(modelRef.current.rotation.y, targetY + Math.PI, 0.08);
@@ -67,6 +84,109 @@ function ModelFallback() {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="w-10 h-10 rounded-full border-t-2 border-b-2 border-saffron animate-spin" />
+    </div>
+  );
+}
+
+// Custom Premium SVG Headset design fallback
+function SVGHeadsetFallback() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    const inner = innerRef.current;
+    if (!el || !inner) return;
+
+    const handleMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / (rect.width / 2);
+      const dy = (e.clientY - cy) / (rect.height / 2);
+      inner.style.transform = `rotateY(${-dx * 18}deg) rotateX(${dy * 15}deg) translate3d(0, 0, 10px)`;
+    };
+
+    const handleLeave = () => {
+      inner.style.transform = 'rotateY(0deg) rotateX(0deg) translate3d(0, 0, 0px)';
+    };
+
+    el.addEventListener('mousemove', handleMove);
+    el.addEventListener('mouseleave', handleLeave);
+    return () => {
+      el.removeEventListener('mousemove', handleMove);
+      el.removeEventListener('mouseleave', handleLeave);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full max-w-[460px] mx-auto cursor-pointer select-none py-10"
+      style={{ perspective: '1500px', transformStyle: 'preserve-3d' }}
+    >
+      <div
+        ref={innerRef}
+        className="relative float-anim"
+        style={{
+          transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ transform: 'translateZ(-40px)' }}>
+          <div className="absolute w-[120%] h-[120%] rounded-full border border-dashed border-amber-500/10 orbit-ring-1" />
+          <div className="absolute w-[135%] h-[135%] rounded-full border border-double border-saffron/8 orbit-ring-2" />
+        </div>
+
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] pointer-events-none" 
+          style={{
+            background: 'radial-gradient(circle, rgba(255,153,51,0.18) 0%, rgba(212,175,55,0.05) 50%, transparent 100%)',
+            transform: 'translateZ(-30px)'
+          }}
+        />
+
+        <div className="relative drop-shadow-[0_25px_60px_rgba(6,5,12,0.8)]" style={{ transform: 'translateZ(0px)', transformStyle: 'preserve-3d' }}>
+          <svg viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" className="w-full">
+            <defs>
+              <linearGradient id="luxuryBody" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#121024"/>
+                <stop offset="40%" stopColor="#080712"/>
+                <stop offset="100%" stopColor="#030206"/>
+              </linearGradient>
+              <linearGradient id="goldFoil" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#B8860B"/>
+                <stop offset="30%" stopColor="#FFE29A"/>
+                <stop offset="70%" stopColor="#D4AF37"/>
+                <stop offset="100%" stopColor="#FF9933"/>
+              </linearGradient>
+              <linearGradient id="glassReflection" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.18)"/>
+                <stop offset="30%" stopColor="rgba(255,255,255,0.03)"/>
+                <stop offset="70%" stopColor="rgba(255,153,51,0.02)"/>
+                <stop offset="100%" stopColor="rgba(212,175,55,0.15)"/>
+              </linearGradient>
+              <radialGradient id="spiritualGlow" cx="50%" cy="40%" r="50%">
+                <stop offset="0%" stopColor="rgba(255,153,51,0.4)"/>
+                <stop offset="40%" stopColor="rgba(212,175,55,0.15)"/>
+                <stop offset="100%" stopColor="rgba(6,5,12,0.95)"/>
+              </radialGradient>
+            </defs>
+
+            <rect x="50" y="75" width="340" height="130" rx="35" fill="#0A0914" stroke="url(#goldFoil)" strokeWidth="0.5" opacity="0.4" />
+            <rect x="56" y="66" width="328" height="148" rx="42" fill="url(#luxuryBody)" stroke="url(#goldFoil)" strokeWidth="1.2" />
+            <rect x="62" y="72" width="316" height="136" rx="36" fill="url(#spiritualGlow)" opacity="0.9" />
+            <rect x="62" y="72" width="316" height="136" rx="36" fill="url(#glassReflection)" />
+
+            <ellipse cx="155" cy="140" rx="42" ry="38" fill="#06050C" stroke="url(#goldFoil)" strokeWidth="1" opacity="0.8" />
+            <ellipse cx="285" cy="140" rx="42" ry="38" fill="#06050C" stroke="url(#goldFoil)" strokeWidth="1" opacity="0.8" />
+            <path d="M205 72 L220 52 L235 72 Z" fill="url(#goldFoil)" opacity="0.8" />
+            <line x1="220" y1="52" x2="220" y2="35" stroke="url(#goldFoil)" strokeWidth="1.5" opacity="0.9" />
+            <circle cx="220" cy="32" r="2.5" fill="#FFE29A" />
+            <text x="220" y="102" textAnchor="middle" fontFamily="Cinzel" fontSize="9" fill="url(#goldFoil)" letterSpacing="5" opacity="0.75">DIGIDHAM</text>
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
@@ -102,63 +222,67 @@ function VRHeadsetMockup() {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-[400px] md:h-[460px] mx-auto cursor-pointer select-none"
-      style={{ perspective: '1500px', transformStyle: 'preserve-3d' }}
-    >
-      {/* Tilted Concentric Orbital Rings */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ transform: 'translateZ(-40px)' }}>
-        <div className="absolute w-[80%] h-[80%] rounded-full border border-dashed border-amber-500/10 orbit-ring-1" />
-        <div className="absolute w-[95%] h-[95%] rounded-full border border-double border-saffron/8 orbit-ring-2" />
-        <div className="absolute w-[110%] h-[110%] rounded-full border border-amber-400/5 orbit-ring-3" />
-      </div>
+    <CanvasErrorBoundary fallback={<SVGHeadsetFallback />}>
+      <div
+        ref={containerRef}
+        className="relative w-full h-[400px] md:h-[460px] mx-auto cursor-pointer select-none"
+        style={{ perspective: '1500px', transformStyle: 'preserve-3d' }}
+      >
+        {/* Tilted Concentric Orbital Rings */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ transform: 'translateZ(-40px)' }}>
+          <div className="absolute w-[80%] h-[80%] rounded-full border border-dashed border-amber-500/10 orbit-ring-1" />
+          <div className="absolute w-[95%] h-[95%] rounded-full border border-double border-saffron/8 orbit-ring-2" />
+          <div className="absolute w-[110%] h-[110%] rounded-full border border-amber-400/5 orbit-ring-3" />
+        </div>
 
-      {/* Studio Light Backdrop Aura */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[100px] pointer-events-none transition-opacity duration-500" 
-        style={{
-          background: 'radial-gradient(circle, rgba(255,153,51,0.14) 0%, rgba(212,175,55,0.04) 50%, transparent 100%)',
-        }}
-      />
+        {/* Studio Light Backdrop Aura */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[100px] pointer-events-none transition-opacity duration-500" 
+          style={{
+            background: 'radial-gradient(circle, rgba(255,153,51,0.14) 0%, rgba(212,175,55,0.04) 50%, transparent 100%)',
+          }}
+        />
 
-      {/* 3D Model Rendering Canvas */}
-      <div className="w-full h-full relative" style={{ transform: 'translateZ(10px)' }}>
-        <Suspense fallback={<ModelFallback />}>
-          <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }}>
-            <ambientLight intensity={1.5} />
-            <directionalLight position={[5, 5, 5]} intensity={2.5} color="#FFE29A" />
-            <directionalLight position={[-5, 5, -5]} intensity={1.2} color="#FF9933" />
-            <pointLight position={[0, -2, 2]} intensity={1.5} color="#D4AF37" />
-            <Model mousePos={mousePos} />
-          </Canvas>
-        </Suspense>
-      </div>
+        {/* 3D Model Rendering Canvas */}
+        <div className="w-full h-full relative" style={{ transform: 'translateZ(10px)' }}>
+          <Suspense fallback={<ModelFallback />}>
+            <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }}>
+              <ambientLight intensity={1.5} />
+              <directionalLight position={[5, 5, 5]} intensity={2.5} color="#FFE29A" />
+              <directionalLight position={[-5, 5, -5]} intensity={1.2} color="#FF9933" />
+              <pointLight position={[0, -2, 2]} intensity={1.5} color="#D4AF37" />
+              <Suspense fallback={null}>
+                <Model mousePos={mousePos} />
+              </Suspense>
+            </Canvas>
+          </Suspense>
+        </div>
 
-      {/* 3D Floating Diya Particles with Parallax */}
-      <div className="absolute inset-0 pointer-events-none" style={{ transform: 'translateZ(30px)' }}>
-        {[
-          { top: '8%', left: '8%', delay: '0s', size: 7 },
-          { top: '15%', right: '12%', delay: '0.8s', size: 5 },
-          { bottom: '12%', left: '16%', delay: '1.6s', size: 6 },
-          { bottom: '18%', right: '10%', delay: '0.4s', size: 4 },
-        ].map((p, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              ...p,
-              width: p.size,
-              height: p.size,
-              background: 'linear-gradient(135deg, #FFE29A, #FF9933)',
-              animation: `diya-flicker ${2 + i * 0.4}s ease-in-out infinite`,
-              animationDelay: p.delay,
-              boxShadow: '0 0 12px rgba(255,153,51,0.9), 0 0 24px rgba(212,175,55,0.4)',
-            }}
-          />
-        ))}
+        {/* 3D Floating Diya Particles with Parallax */}
+        <div className="absolute inset-0 pointer-events-none" style={{ transform: 'translateZ(30px)' }}>
+          {[
+            { top: '8%', left: '8%', delay: '0s', size: 7 },
+            { top: '15%', right: '12%', delay: '0.8s', size: 5 },
+            { bottom: '12%', left: '16%', delay: '1.6s', size: 6 },
+            { bottom: '18%', right: '10%', delay: '0.4s', size: 4 },
+          ].map((p, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                ...p,
+                width: p.size,
+                height: p.size,
+                background: 'linear-gradient(135deg, #FFE29A, #FF9933)',
+                animation: `diya-flicker ${2 + i * 0.4}s ease-in-out infinite`,
+                animationDelay: p.delay,
+                boxShadow: '0 0 12px rgba(255,153,51,0.9), 0 0 24px rgba(212,175,55,0.4)',
+              }}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </CanvasErrorBoundary>
   );
 }
 
